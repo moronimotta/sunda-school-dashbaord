@@ -33,14 +33,12 @@ prisma.$connect()
   .then(() => console.log('Connected to PostgreSQL'))
   .catch((err) => console.error('PostgreSQL connection error:', err));
 
-// Routes
+// Routes - All public (no authentication)
 app.use('/api/auth', authRoutes);
-// Public members route(s) without auth
 app.use('/api/members', publicMembersRouter);
-// Authenticated members routes
-app.use('/api/members', authenticate, memberRoutes);
-app.use('/api/attendance', authenticate, attendanceRoutes);
-app.use('/api/export', authenticate, exportRoutes);
+app.use('/api/members', memberRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/export', exportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
