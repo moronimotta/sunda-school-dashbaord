@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Member {
+  id         Int          @id @default(autoincrement())
+  name       String
+  gender     Gender
+  category   Category     @default(REGULAR)
+  email      String?
+  phone      String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  attendance Attendance[]
+}
+
+model Attendance {
+  id             Int      @id @default(autoincrement())
+  memberId       Int
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date           DateTime
+  present        Boolean  @default(false)
+  readAssignment Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([memberId, date])
+  @@index([date])
+  @@index([memberId])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Category {
+  REGULAR
+  TEMPLE_PREP
+  MISSION_PREP
+}

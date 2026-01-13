@@ -1,0 +1,7 @@
+node_modules
+.env
+.env.local
+uploads/
+debug-output.txt
+*.pdf
+.DS_Store
