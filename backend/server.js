@@ -14,7 +14,17 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.VERCEL_URL 
+    ? [
+        `https://${process.env.VERCEL_URL}`,
+        'https://sunday-school-dashbaord.vercel.app',
+        'https://sunda-school-dashbaord-git-master-moronis-projects-f99a0308.vercel.app',
+        /\.vercel\.app$/
+      ]
+    : ['http://localhost:3000', 'http://localhost:5000'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
