@@ -194,10 +194,10 @@ router.get('/stats', async (req, res) => {
       };
     }
     
-    // Get all members
-    const totalMembers = await prisma.member.count();
-    const maleMembers = await prisma.member.count({ where: { gender: 'MALE' } });
-    const femaleMembers = await prisma.member.count({ where: { gender: 'FEMALE' } });
+    // Overall stats should only count REGULAR members
+    const totalMembers = await prisma.member.count({ where: { category: 'REGULAR' } });
+    const maleMembers = await prisma.member.count({ where: { category: 'REGULAR', gender: 'MALE' } });
+    const femaleMembers = await prisma.member.count({ where: { category: 'REGULAR', gender: 'FEMALE' } });
     const templePrepMembers = await prisma.member.count({ where: { category: 'TEMPLE_PREP' } });
     const missionPrepMembers = await prisma.member.count({ where: { category: 'MISSION_PREP' } });
     
@@ -211,10 +211,13 @@ router.get('/stats', async (req, res) => {
     const uniqueDates = new Set(attendanceRecords.map((a) => a.date.toISOString().slice(0, 10)));
     const dateCount = uniqueDates.size;
 
-    // Total possible attendance slots
+    // Total possible attendance slots (REGULAR only)
     const totalAttendanceSlots = dateCount > 0 ? totalMembers * dateCount : 0;
     
     // Calculate statistics
+    // Split attendance into REGULAR and PREP (Temple/Mission)
+    const regularAttendance = attendanceRecords.filter(a => a.member?.category === 'REGULAR');
+    const presentRegular = regularAttendance.filter(a => a.present);
     const stats = {
       totalMembers,
       maleMembers,
@@ -222,10 +225,10 @@ router.get('/stats', async (req, res) => {
       templePrepMembers,
       missionPrepMembers,
       totalAttendanceRecords: totalAttendanceSlots,
-      presentCount: attendanceRecords.filter(a => a.present).length,
-      readAssignmentCount: attendanceRecords.filter(a => a.readAssignment).length,
-      maleAttendance: attendanceRecords.filter(a => a.present && a.member?.gender === 'MALE').length,
-      femaleAttendance: attendanceRecords.filter(a => a.present && a.member?.gender === 'FEMALE').length,
+      presentCount: presentRegular.length,
+      readAssignmentCount: presentRegular.filter(a => a.readAssignment).length,
+      maleAttendance: presentRegular.filter(a => a.member?.gender === 'MALE').length,
+      femaleAttendance: presentRegular.filter(a => a.member?.gender === 'FEMALE').length,
       templePrepAttendance: attendanceRecords.filter(a => a.present && a.member?.category === 'TEMPLE_PREP').length,
       missionPrepAttendance: attendanceRecords.filter(a => a.present && a.member?.category === 'MISSION_PREP').length,
       datesIncluded: dateCount

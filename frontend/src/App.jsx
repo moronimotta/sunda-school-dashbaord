@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Dashboard from './components/Dashboard';
 import MemberManagement from './components/MemberManagement';
+import PrepManagement from './components/PrepManagement';
 import AttendanceTracking from './components/AttendanceTracking';
 import './App.css';
 
@@ -28,6 +29,12 @@ function App() {
             👥 Members
           </button>
           <button 
+            className={`nav-tab ${activeTab === 'prep' ? 'active' : ''}`}
+            onClick={() => setActiveTab('prep')}
+          >
+            🏛️ Temple/Mission
+          </button>
+          <button 
             className={`nav-tab ${activeTab === 'attendance' ? 'active' : ''}`}
             onClick={() => setActiveTab('attendance')}
           >
@@ -38,6 +45,7 @@ function App() {
         <div className="tab-content">
           {activeTab === 'dashboard' && <Dashboard />}
           {activeTab === 'members' && <MemberManagement />}
+          {activeTab === 'prep' && <PrepManagement />}
           {activeTab === 'attendance' && <AttendanceTracking />}
         </div>
       </main>

@@ -98,9 +98,10 @@ export const exportToGoogleSheets = async (startDate, endDate, spreadsheetId, sh
     // Add summary section
     const totalRecords = attendanceRecords.length;
     const presentCount = attendanceRecords.filter(r => r.present).length;
-    const readCount = attendanceRecords.filter(r => r.readAssignment).length;
+    const presentRecords = attendanceRecords.filter(r => r.present);
+    const readCount = presentRecords.filter(r => r.readAssignment).length;
     const attendanceRate = totalRecords > 0 ? ((presentCount / totalRecords) * 100).toFixed(1) : 0;
-    const readingRate = totalRecords > 0 ? ((readCount / totalRecords) * 100).toFixed(1) : 0;
+    const readingRate = presentCount > 0 ? ((readCount / presentCount) * 100).toFixed(1) : 0;
 
     rows.push([]);
     rows.push(['SUMMARY']);

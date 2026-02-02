@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { membersAPI } from '../services/api';
 
-const MemberManagement = () => {
+const PrepManagement = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
   const [formData, setFormData] = useState({
     name: '',
     gender: 'male',
-    category: 'regular',
+    category: 'temple-prep',
     email: '',
     phone: ''
   });
-  const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     fetchMembers();
@@ -23,7 +23,7 @@ const MemberManagement = () => {
     try {
       const response = await membersAPI.getAll();
       setMembers(response.data);
-    } catch (error) {
+    } catch (e) {
       showMessage('error', 'Failed to load members');
     } finally {
       setLoading(false);
@@ -35,10 +35,16 @@ const MemberManagement = () => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
+  const resetForm = () => {
+    setFormData({ name: '', gender: 'male', category: 'temple-prep', email: '', phone: '' });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...formData, category: 'regular' };
+      const payload = { ...formData };
       if (editingId) {
         await membersAPI.update(editingId, payload);
         showMessage('success', 'Member updated successfully');
@@ -57,7 +63,7 @@ const MemberManagement = () => {
     setFormData({
       name: member.name,
       gender: member.gender,
-      category: 'regular',
+      category: member.category,
       email: member.email || '',
       phone: member.phone || ''
     });
@@ -67,7 +73,6 @@ const MemberManagement = () => {
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this member?')) return;
-    
     try {
       await membersAPI.delete(id);
       showMessage('success', 'Member deleted successfully');
@@ -77,35 +82,9 @@ const MemberManagement = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!confirm('Are you sure you want to delete ALL members? This cannot be undone!')) return;
-    
-    try {
-      await membersAPI.deleteAll();
-      showMessage('success', 'All members deleted successfully');
-      fetchMembers();
-    } catch (error) {
-      showMessage('error', 'Failed to delete members');
-    }
-  };
+  const prepMembers = members.filter(m => m.category === 'temple-prep' || m.category === 'mission-prep');
 
-
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      gender: 'male',
-      category: 'regular',
-      email: '',
-      phone: ''
-    });
-    setEditingId(null);
-    setShowForm(false);
-  };
-
-  if (loading) {
-    return <div className="loading"><div className="spinner"></div></div>;
-  }
+  if (loading) return <div className="loading"><div className="spinner"></div></div>;
 
   return (
     <div>
@@ -117,28 +96,17 @@ const MemberManagement = () => {
 
       <div className="card">
         <div className="flex justify-between items-center mb-2">
-          <h2>Members ({members.length})</h2>
+          <h2>Temple/Mission Prep Members ({prepMembers.length})</h2>
           <div className="flex gap-1">
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowForm(!showForm)}
-            >
-              {showForm ? 'Cancel' : '+ Add Member'}
+            <button className="btn btn-primary btn-sm" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : '+ Add Prep Member'}
             </button>
-            {members.length > 0 && (
-              <button 
-                className="btn btn-danger btn-sm"
-                onClick={handleDeleteAll}
-              >
-                🗑️ Delete All
-              </button>
-            )}
           </div>
         </div>
 
         {showForm && (
           <form onSubmit={handleSubmit} className="card" style={{ background: '#f9fafb' }}>
-            <h3>{editingId ? 'Edit Member' : 'Add New Member'}</h3>
+            <h3>{editingId ? 'Edit Prep Member' : 'Add New Prep Member'}</h3>
             <div className="form-group">
               <label>Name *</label>
               <input
@@ -160,7 +128,17 @@ const MemberManagement = () => {
                 <option value="female">Female</option>
               </select>
             </div>
-            {/* Regular members tab: category is fixed to Regular */}
+            <div className="form-group">
+              <label>Program *</label>
+              <select
+                className="form-control"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              >
+                <option value="temple-prep">Temple Prep</option>
+                <option value="mission-prep">Mission Prep</option>
+              </select>
+            </div>
             <div className="form-group">
               <label>Email</label>
               <input
@@ -198,41 +176,31 @@ const MemberManagement = () => {
               <tr>
                 <th>Name</th>
                 <th>Gender</th>
-                <th>Category</th>
+                <th>Program</th>
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {members.filter(m => m.category === 'regular').length === 0 ? (
+              {prepMembers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center">No members found. Add members or upload a PDF.</td>
+                  <td colSpan="6" className="text-center">No prep members found. Add some above.</td>
                 </tr>
               ) : (
-                members.filter(member => member.category === 'regular').map((member) => (
+                prepMembers.map((member) => (
                   <tr key={member._id}>
                     <td>{member.name}</td>
                     <td>{member.gender === 'male' ? '👨 Male' : '👩 Female'}</td>
                     <td>
-                      📚 Regular
+                      {member.category === 'temple-prep' ? '🏛️ Temple Prep' : '📖 Mission Prep'}
                     </td>
                     <td>{member.email || '-'}</td>
                     <td>{member.phone || '-'}</td>
                     <td>
                       <div className="flex gap-1">
-                        <button 
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleEdit(member)}
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(member._id)}
-                        >
-                          Delete
-                        </button>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleEdit(member)}>Edit</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(member._id)}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -246,4 +214,4 @@ const MemberManagement = () => {
   );
 };
 
-export default MemberManagement;
+export default PrepManagement;

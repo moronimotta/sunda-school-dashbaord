@@ -27,13 +27,35 @@ const Dashboard = () => {
     { date: '2026-04-05', label: 'Apr 5 (Week 6)' }
   ];
 
-  // Calculate current Come Follow Me lesson number (changes every 2 weeks)
+  // Calculate current Come Follow Me lesson number (changes every week)
   const getCurrentLessonNumber = () => {
-    const semesterStart = new Date('2026-01-18');
+    // Start date for the year (Jan 5-11, 2026 is week 1, Monday-start)
+    const yearStart = new Date('2026-01-05');
     const today = new Date();
-    const weeksPassed = differenceInWeeks(today, semesterStart);
-    const lessonNumber = Math.floor(weeksPassed / 2) + 2; // Start at lesson 2
-    return Math.max(2, Math.min(lessonNumber, 15)); // Lessons 2-15 for semester
+    // If today is Sunday, use the next day (Monday) to select the upcoming week's assignment
+    const effectiveDate = today.getDay() === 0
+      ? new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+      : today;
+    const weeksPassed = differenceInWeeks(effectiveDate, yearStart);
+    const lessonNumber = weeksPassed + 1; // Week 1 starts on Jan 5
+    return Math.max(1, Math.min(lessonNumber, 53)); // Lessons 1-53 for full year
+  };
+
+  // Get current week date range label (e.g., "Feb 2–8") using Monday-start weeks
+  const getCurrentWeekLabel = () => {
+    const today = new Date();
+    const effectiveDate = today.getDay() === 0
+      ? new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+      : today;
+    const day = effectiveDate.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+    const daysToMonday = (day + 6) % 7; // distance back to Monday
+    const start = new Date(effectiveDate);
+    start.setDate(effectiveDate.getDate() - daysToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const startLabel = format(start, 'MMM d');
+    const endLabel = format(end, 'd');
+    return `${startLabel}–${endLabel}`;
   };
 
   useEffect(() => {
@@ -154,15 +176,15 @@ const Dashboard = () => {
 
   const assignmentData = [
     { name: 'Read Assignment', value: stats.readAssignmentCount },
-    { name: 'Did Not Read', value: stats.totalAttendanceRecords - stats.readAssignmentCount }
+    { name: 'Did Not Read', value: stats.presentCount - stats.readAssignmentCount }
   ];
 
   const attendanceRate = stats.totalAttendanceRecords > 0
     ? ((stats.presentCount / stats.totalAttendanceRecords) * 100).toFixed(1)
     : 0;
 
-  const assignmentRate = stats.totalAttendanceRecords > 0
-    ? ((stats.readAssignmentCount / stats.totalAttendanceRecords) * 100).toFixed(1)
+  const assignmentRate = stats.presentCount > 0
+    ? ((stats.readAssignmentCount / stats.presentCount) * 100).toFixed(1)
     : 0;
 
   return (
@@ -313,7 +335,7 @@ const Dashboard = () => {
               Come, Follow Me
             </h4>
             <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280', textAlign: 'center' }}>
-              Week {getCurrentLessonNumber()} - Old Testament 2026
+              {getCurrentWeekLabel()} · Old Testament 2026
             </p>
           </a>
 
