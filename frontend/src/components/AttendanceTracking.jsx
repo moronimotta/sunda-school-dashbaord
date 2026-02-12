@@ -3,14 +3,27 @@ import { membersAPI, attendanceAPI, exportAPI } from '../services/api';
 import { format } from 'date-fns';
 
 const AttendanceTracking = () => {
-  // Spring 2026 Semester: Jan 18 - April 10 (first and third Sundays)
+  // Spring 2026 Semester dates:
+  // Regular Sunday School: Jan 18, Feb 1, Feb 15, Mar 1, Mar 15, Apr 5 (first and third Sundays)
+  // Temple Prep (5 weeks): Feb 15, 22, Mar 1, 8, 15
+  // Mission Prep (8 weeks): Feb 15, 22, Mar 1, 8, 15, 22, 29, Apr 5
+  
+  const regularDates = ['2026-01-18', '2026-02-01', '2026-02-15', '2026-03-01', '2026-03-15', '2026-04-05'];
+  const templePrepDates = ['2026-02-15', '2026-02-22', '2026-03-01', '2026-03-08', '2026-03-15'];
+  const missionPrepDates = ['2026-02-15', '2026-02-22', '2026-03-01', '2026-03-08', '2026-03-15', '2026-03-22', '2026-03-29', '2026-04-05'];
+  
+  // Combined unique dates sorted:
   const attendanceDates = [
-    '2026-01-18', // Third Sunday, January
-    '2026-02-01', // First Sunday, February
-    '2026-02-15', // Third Sunday, February
-    '2026-03-01', // First Sunday, March
-    '2026-03-15', // Third Sunday, March
-    '2026-04-05'  // First Sunday, April (before Apr 10 cutoff)
+    '2026-01-18', // Regular only
+    '2026-02-01', // Regular only
+    '2026-02-15', // Regular + Temple Prep + Mission Prep
+    '2026-02-22', // Temple Prep + Mission Prep
+    '2026-03-01', // Regular + Temple Prep + Mission Prep
+    '2026-03-08', // Temple Prep + Mission Prep
+    '2026-03-15', // Regular + Temple Prep + Mission Prep
+    '2026-03-22', // Mission Prep only
+    '2026-03-29', // Mission Prep only
+    '2026-04-05'  // Regular + Mission Prep
   ];
 
   const defaultDate = () => {
@@ -154,6 +167,20 @@ const AttendanceTracking = () => {
   const regularMembers = members.filter(m => m.category === 'regular');
   const templePrepMembers = members.filter(m => m.category === 'temple-prep');
   const missionPrepMembers = members.filter(m => m.category === 'mission-prep');
+  
+  // Determine which classes meet on the selected date
+  const hasRegularClass = regularDates.includes(selectedDate);
+  const hasTemplePrepClass = templePrepDates.includes(selectedDate);
+  const hasMissionPrepClass = missionPrepDates.includes(selectedDate);
+  
+  // Build class info message
+  const getClassInfo = () => {
+    const classes = [];
+    if (hasRegularClass) classes.push('📚 Regular Sunday School');
+    if (hasTemplePrepClass) classes.push('🏛️ Temple Prep');
+    if (hasMissionPrepClass) classes.push('📖 Mission Prep');
+    return classes.length > 0 ? classes.join(' • ') : 'No classes scheduled';
+  };
 
   const AttendanceTable = ({ membersList, title }) => (
     <div className="card">
@@ -205,7 +232,12 @@ const AttendanceTracking = () => {
 
       <div className="card">
         <div className="flex justify-between items-center">
-          <h2>Attendance Tracking</h2>
+          <div>
+            <h2>Attendance Tracking</h2>
+            <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
+              Classes today: {getClassInfo()}
+            </p>
+          </div>
           <div className="flex gap-1 items-center">
             <label htmlFor="date-select" style={{ marginRight: '0.5rem', fontWeight: '500' }}>
               Select Date:
@@ -244,25 +276,31 @@ const AttendanceTracking = () => {
         </div>
       </div>
 
-      {regularMembers.length > 0 && (
+      {hasRegularClass && regularMembers.length > 0 && (
         <AttendanceTable 
           membersList={regularMembers} 
           title="📚 Regular Sunday School" 
         />
       )}
 
-      {templePrepMembers.length > 0 && (
+      {hasTemplePrepClass && templePrepMembers.length > 0 && (
         <AttendanceTable 
           membersList={templePrepMembers} 
           title="🏛️ Temple Preparation" 
         />
       )}
 
-      {missionPrepMembers.length > 0 && (
+      {hasMissionPrepClass && missionPrepMembers.length > 0 && (
         <AttendanceTable 
           membersList={missionPrepMembers} 
           title="📖 Mission Preparation" 
         />
+      )}
+      
+      {!hasRegularClass && !hasTemplePrepClass && !hasMissionPrepClass && (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem', background: '#f9fafb' }}>
+          <p style={{ color: '#6b7280', margin: 0 }}>No classes are scheduled for this date.</p>
+        </div>
       )}
     </div>
   );

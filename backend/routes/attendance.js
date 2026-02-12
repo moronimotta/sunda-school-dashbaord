@@ -214,6 +214,33 @@ router.get('/stats', async (req, res) => {
     // Total possible attendance slots (REGULAR only)
     const totalAttendanceSlots = dateCount > 0 ? totalMembers * dateCount : 0;
     
+    // Temple Prep and Mission Prep schedules (every Sunday)
+    // Temple Prep: 5 weeks (Feb 15, 22, Mar 1, 8, 15)
+    // Mission Prep: 8 weeks (Feb 15, 22, Mar 1, 8, 15, 22, 29, Apr 5)
+    const templePrepDates = [
+      '2026-02-15', '2026-02-22', '2026-03-01', '2026-03-08', '2026-03-15'
+    ];
+    const missionPrepDates = [
+      '2026-02-15', '2026-02-22', '2026-03-01', '2026-03-08', 
+      '2026-03-15', '2026-03-22', '2026-03-29', '2026-04-05'
+    ];
+    
+    // Calculate how many dates in the query range
+    let templePrepWeekCount = 0;
+    let missionPrepWeekCount = 0;
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate).toISOString().slice(0, 10);
+      const end = new Date(endDate).toISOString().slice(0, 10);
+      
+      templePrepWeekCount = templePrepDates.filter(d => d >= start && d <= end).length;
+      missionPrepWeekCount = missionPrepDates.filter(d => d >= start && d <= end).length;
+    } else {
+      // If no date filter, use full schedule
+      templePrepWeekCount = templePrepDates.length;
+      missionPrepWeekCount = missionPrepDates.length;
+    }
+    
     // Calculate statistics
     // Split attendance into REGULAR and PREP (Temple/Mission)
     const regularAttendance = attendanceRecords.filter(a => a.member?.category === 'REGULAR');
@@ -231,7 +258,9 @@ router.get('/stats', async (req, res) => {
       femaleAttendance: presentRegular.filter(a => a.member?.gender === 'FEMALE').length,
       templePrepAttendance: attendanceRecords.filter(a => a.present && a.member?.category === 'TEMPLE_PREP').length,
       missionPrepAttendance: attendanceRecords.filter(a => a.present && a.member?.category === 'MISSION_PREP').length,
-      datesIncluded: dateCount
+      datesIncluded: dateCount,
+      templePrepWeeks: templePrepWeekCount,
+      missionPrepWeeks: missionPrepWeekCount
     };
     
     res.json(stats);

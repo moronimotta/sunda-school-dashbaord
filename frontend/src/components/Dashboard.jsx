@@ -11,11 +11,14 @@ const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [members, setMembers] = useState([]);
+  const [allAttendance, setAllAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSunday, setSelectedSunday] = useState('semester');
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [sheetsConfigured, setSheetsConfigured] = useState(false);
+  const [missedGenderFilter, setMissedGenderFilter] = useState('all');
+  const [missedColorFilter, setMissedColorFilter] = useState('all');
 
   // Semester Sunday dates
   const semesterSundays = [
@@ -86,12 +89,14 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const { startDate, endDate } = getDateRange();
-      const [statsResponse, membersResponse] = await Promise.all([
+      const [statsResponse, membersResponse, attendanceResponse] = await Promise.all([
         attendanceAPI.getStats(startDate, endDate),
-        membersAPI.getAll()
+        membersAPI.getAll(),
+        attendanceAPI.getAll()
       ]);
       setStats(statsResponse.data);
       setMembers(membersResponse.data);
+      setAllAttendance(attendanceResponse.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       showMessage('error', 'Failed to load data');
@@ -149,24 +154,27 @@ const Dashboard = () => {
   const hasData = stats.presentCount > 0 || stats.readAssignmentCount > 0;
 
   // Prepare data for charts
+  const totalSlotsMale = stats.maleMembers * (stats.datesIncluded || 1);
+  const totalSlotsFemale = stats.femaleMembers * (stats.datesIncluded || 1);
+  
   const genderAttendanceData = [
     { 
       name: 'Male', 
-      total: stats.maleMembers, 
+      total: totalSlotsMale, 
       attended: stats.maleAttendance,
-      percentage: stats.maleMembers > 0 ? ((stats.maleAttendance / stats.maleMembers) * 100).toFixed(1) : 0
+      percentage: totalSlotsMale > 0 ? ((stats.maleAttendance / totalSlotsMale) * 100).toFixed(1) : 0
     },
     { 
       name: 'Female', 
-      total: stats.femaleMembers, 
+      total: totalSlotsFemale, 
       attended: stats.femaleAttendance,
-      percentage: stats.femaleMembers > 0 ? ((stats.femaleAttendance / stats.femaleMembers) * 100).toFixed(1) : 0
+      percentage: totalSlotsFemale > 0 ? ((stats.femaleAttendance / totalSlotsFemale) * 100).toFixed(1) : 0
     }
   ];
 
   const categoryAttendanceData = [
-    { name: 'Temple Prep', value: stats.templePrepAttendance, total: stats.templePrepMembers },
-    { name: 'Mission Prep', value: stats.missionPrepAttendance, total: stats.missionPrepMembers }
+    { name: 'Temple Prep', value: stats.templePrepAttendance, total: stats.templePrepMembers * (stats.templePrepWeeks || 1) },
+    { name: 'Mission Prep', value: stats.missionPrepAttendance, total: stats.missionPrepMembers * (stats.missionPrepWeeks || 1) }
   ];
 
   const overallData = [
@@ -186,6 +194,69 @@ const Dashboard = () => {
   const assignmentRate = stats.presentCount > 0
     ? ((stats.readAssignmentCount / stats.presentCount) * 100).toFixed(1)
     : 0;
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const regularClassDatesSoFar = semesterSundays
+    .map((sunday) => sunday.date)
+    .filter((date) => date <= todayStr);
+  const totalRegularClassesSoFar = regularClassDatesSoFar.length;
+
+  const regularMembers = members.filter((member) => member.category === 'regular');
+  const presentLookup = new Set(
+    allAttendance
+      .filter((record) => {
+        const dateKey = record.date?.slice(0, 10);
+        const memberCategory = record.memberId?.category;
+        return record.present && memberCategory === 'regular' && regularClassDatesSoFar.includes(dateKey);
+      })
+      .map((record) => `${record.memberId?._id}-${record.date?.slice(0, 10)}`)
+  );
+
+  const missedMembers = totalRegularClassesSoFar > 0
+    ? regularMembers
+        .map((member) => {
+          const attendedCount = regularClassDatesSoFar.reduce((count, date) => {
+            return presentLookup.has(`${member._id}-${date}`) ? count + 1 : count;
+          }, 0);
+
+          const missedCount = totalRegularClassesSoFar - attendedCount;
+          return {
+            ...member,
+            attendedCount,
+            missedCount,
+            missedRate: ((missedCount / totalRegularClassesSoFar) * 100).toFixed(0)
+          };
+        })
+        .filter((member) => member.missedCount > 0)
+        .sort((a, b) => b.missedCount - a.missedCount || a.name.localeCompare(b.name))
+    : [];
+
+  const getMissedRowClass = (missedCount) => {
+    if (totalRegularClassesSoFar === 0) return '';
+    if (missedCount > totalRegularClassesSoFar / 2) return 'missed-row-danger';
+    if (missedCount * 2 === totalRegularClassesSoFar) return 'missed-row-warning';
+    return '';
+  };
+
+  const filteredMissedMembers = missedMembers.filter((member) => {
+    // Gender filter
+    if (missedGenderFilter !== 'all' && member.gender !== missedGenderFilter) {
+      return false;
+    }
+    
+    // Color filter
+    if (missedColorFilter !== 'all') {
+      const rowClass = getMissedRowClass(member.missedCount);
+      if (missedColorFilter === 'yellow' && rowClass !== 'missed-row-warning') {
+        return false;
+      }
+      if (missedColorFilter === 'red' && rowClass !== 'missed-row-danger') {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   return (
     <div>
@@ -382,11 +453,12 @@ const Dashboard = () => {
           <h3>Temple Prep Attendance</h3>
           <div className="stat-value">
             {stats.templePrepMembers > 0 
-              ? ((stats.templePrepAttendance / stats.templePrepMembers) * 100).toFixed(0)
+              ? ((stats.templePrepAttendance / (stats.templePrepMembers * (stats.templePrepWeeks || 1))) * 100).toFixed(0)
               : 0}%
           </div>
           <div className="stat-label">
-            {stats.templePrepAttendance} of {stats.templePrepMembers} members
+            {stats.templePrepAttendance} of {stats.templePrepMembers * (stats.templePrepWeeks || 1)} total slots
+            {stats.templePrepWeeks > 0 && ` (${stats.templePrepWeeks} ${stats.templePrepWeeks === 1 ? 'week' : 'weeks'})`}
           </div>
         </div>
         
@@ -394,11 +466,12 @@ const Dashboard = () => {
           <h3>Mission Prep Attendance</h3>
           <div className="stat-value">
             {stats.missionPrepMembers > 0 
-              ? ((stats.missionPrepAttendance / stats.missionPrepMembers) * 100).toFixed(0)
+              ? ((stats.missionPrepAttendance / (stats.missionPrepMembers * (stats.missionPrepWeeks || 1))) * 100).toFixed(0)
               : 0}%
           </div>
           <div className="stat-label">
-            {stats.missionPrepAttendance} of {stats.missionPrepMembers} members
+            {stats.missionPrepAttendance} of {stats.missionPrepMembers * (stats.missionPrepWeeks || 1)} total slots
+            {stats.missionPrepWeeks > 0 && ` (${stats.missionPrepWeeks} ${stats.missionPrepWeeks === 1 ? 'week' : 'weeks'})`}
           </div>
         </div>
       </div>
@@ -491,6 +564,98 @@ const Dashboard = () => {
       </div>
       </>
       )}
+
+      <div className="card">
+        <h3 style={{ marginBottom: '0.75rem' }}>⚠️ Members Missing Sunday School Classes</h3>
+        {totalRegularClassesSoFar === 0 ? (
+          <p style={{ color: '#6b7280', margin: 0 }}>
+            No regular Sunday classes have happened yet.
+          </p>
+        ) : missedMembers.length === 0 ? (
+          <p style={{ color: '#6b7280', margin: 0 }}>
+            Great news! No regular members have missed class so far.
+          </p>
+        ) : (
+          <>
+            <p style={{ color: '#6b7280', marginBottom: '0.75rem' }}>
+              Based on {totalRegularClassesSoFar} regular {totalRegularClassesSoFar === 1 ? 'class' : 'classes'} held so far.
+            </p>
+            
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+              <div>
+                <label htmlFor="gender-filter" style={{ marginRight: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>
+                  Gender:
+                </label>
+                <select
+                  id="gender-filter"
+                  className="form-control"
+                  value={missedGenderFilter}
+                  onChange={(e) => setMissedGenderFilter(e.target.value)}
+                  style={{ width: 'auto', display: 'inline-block' }}
+                >
+                  <option value="all">All</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="color-filter" style={{ marginRight: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>
+                  Risk Level:
+                </label>
+                <select
+                  id="color-filter"
+                  className="form-control"
+                  value={missedColorFilter}
+                  onChange={(e) => setMissedColorFilter(e.target.value)}
+                  style={{ width: 'auto', display: 'inline-block' }}
+                >
+                  <option value="all">All</option>
+                  <option value="yellow">⚠️ Yellow (Half)</option>
+                  <option value="red">🔴 Red (More than half)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Gender</th>
+                    <th>Missed</th>
+                    <th>Attended</th>
+                    <th>Missed %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMissedMembers.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', color: '#6b7280' }}>
+                        No members match the selected filters
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredMissedMembers.map((member) => (
+                      <tr key={member._id} className={getMissedRowClass(member.missedCount)}>
+                        <td>{member.name}</td>
+                        <td>{member.gender === 'male' ? '👨 Male' : '👩 Female'}</td>
+                        <td>{member.missedCount} / {totalRegularClassesSoFar}</td>
+                        <td>{member.attendedCount} / {totalRegularClassesSoFar}</td>
+                        <td>{member.missedRate}%</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ marginTop: '0.75rem', color: '#6b7280', fontSize: '0.875rem' }}>
+              Yellow: missed exactly half of regular classes • Red: missed more than half.
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

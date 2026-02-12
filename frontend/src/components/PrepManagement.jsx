@@ -94,6 +94,16 @@ const PrepManagement = () => {
         </div>
       )}
 
+      <div className="card" style={{ background: '#f0f9ff', borderLeft: '4px solid #2563eb' }}>
+        <h3 style={{ marginBottom: '0.5rem' }}>📅 Preparation Class Schedules</h3>
+        <p style={{ margin: '0.25rem 0', color: '#374151' }}>
+          <strong>🏛️ Temple Prep:</strong> 5 weeks (Feb 15, 22, Mar 1, 8, 15, 2026)
+        </p>
+        <p style={{ margin: '0.25rem 0', color: '#374151' }}>
+          <strong>📖 Mission Prep:</strong> 8 weeks (every Sunday from Feb 15 - Apr 5, 2026)
+        </p>
+      </div>
+
       <div className="card">
         <div className="flex justify-between items-center mb-2">
           <h2>Temple/Mission Prep Members ({prepMembers.length})</h2>

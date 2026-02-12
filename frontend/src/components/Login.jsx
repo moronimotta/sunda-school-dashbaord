@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-const Login = () => {
+const Login = ({ onSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,6 +15,7 @@ const Login = () => {
 
     try {
       await login(username, password);
+      if (onSuccess) onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
