@@ -89,7 +89,35 @@ const MemberManagement = () => {
     }
   };
 
+  const handleExportNames = () => {
+    if (members.length === 0) {
+      showMessage('error', 'No members to export');
+      return;
+    }
 
+    // Get all member names (filter for regular members to match the table display)
+    const memberNames = members
+      .filter(m => m.category === 'regular')
+      .map(member => member.name)
+      .join('\n');
+
+    // Create a blob with the text content
+    const blob = new Blob([memberNames], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    // Create a temporary link element and trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sunday-school-members-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+
+    // Clean up
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showMessage('success', `Exported ${members.filter(m => m.category === 'regular').length} member names to text file`);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -126,12 +154,20 @@ const MemberManagement = () => {
               {showForm ? 'Cancel' : '+ Add Member'}
             </button>
             {members.length > 0 && (
-              <button 
-                className="btn btn-danger btn-sm"
-                onClick={handleDeleteAll}
-              >
-                🗑️ Delete All
-              </button>
+              <>
+                <button 
+                  className="btn btn-success btn-sm"
+                  onClick={handleExportNames}
+                >
+                  📄 Export Names
+                </button>
+                <button 
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteAll}
+                >
+                  🗑️ Delete All
+                </button>
+              </>
             )}
           </div>
         </div>
